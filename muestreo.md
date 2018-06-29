@@ -44,20 +44,20 @@ float millivolts;
 float celsius;
 
 void setup() {
-  Serial.begin(9600);
+	Serial.begin(9600);
 }
 
 void loop() {
-  muestra=analogRead(pinLM35);
-  Serial.print("Valor tomado por analogRead: ");
-  Serial.println(muestra);
-  
-  millivolts = (muestra / 1023.0) * 5000;
-  celsius = millivolts / 10; 
-  Serial.print("Grados centígrados: ");
-  Serial.println(celsius);
-  Serial.println("");
-  delay(1000);
+	muestra=analogRead(pinLM35);
+	Serial.print("Valor tomado por analogRead: ");
+	Serial.println(muestra);
+
+	millivolts = (muestra / 1023.0) * 5000;
+	celsius = millivolts / 10; 
+	Serial.print("Grados centígrados: ");
+	Serial.println(celsius);
+	Serial.println("");
+	delay(1000);
 }
 ´´´
 ___
@@ -77,40 +77,103 @@ float tmax=-70;
 float tmin=200;
 
 void setup() {
-  Serial.begin(9600);
+	Serial.begin(9600);
 }
 
 void loop() {
-  Serial.print("Tomando muestras");
-  while(i<20){
-    Serial.print(".");
-    muestra=analogRead(pinLM35);
-    millivolts = (muestra / 1023.0) * 5000;
-    celsius = millivolts / 10; 
-        
-    muestras[i]=celsius; 
-    sum=sum+celsius;
-    tmax=max(tmax, celsius);
-    tmin=min(tmin, celsius);
-    
-    i=i+1;
-    delay(1000);
-  }
-  if(i=20) {
-    Serial.println("");
-    Serial.print("Temperatura máxima: ");
-    Serial.println(tmax);
-    Serial.print("Temperatura mínima: ");
-    Serial.println(tmin);
-    Serial.print("Temperatura promedio: ");
-    Serial.println(sum/20);
-    Serial.println("");
-    delay(10000);
-    i=0;
-  }
+	Serial.print("Tomando muestras");
+	while(i<20){
+	    Serial.print(".");
+	    muestra=analogRead(pinLM35);
+	    millivolts = (muestra / 1023.0) * 5000;
+	    celsius = millivolts / 10; 
+	        
+	    muestras[i]=celsius; 
+	    sum=sum+celsius;
+	    tmax=max(tmax, celsius);
+	    tmin=min(tmin, celsius);
+	    
+	    i++;
+	    delay(1000);
+  	}
+	if(i=20) {
+		Serial.println("");
+		Serial.print("Temperatura máxima: ");
+		Serial.println(tmax);
+		Serial.print("Temperatura mínima: ");
+		Serial.println(tmin);
+		Serial.print("Temperatura promedio: ");
+		Serial.println(sum/20);
+		Serial.println("");
+		delay(10000);
+		i=0;
+	}
 }
 ´´´
 La idea en este caso es guardar las muestras tomadas en intervalos de 1 segundo (esto viene dado por *delay(1000)*) en un arreglo, para luego poder analizarlas.
-Si observamos el código presentado, las muestras se almacenan en un arreglo de reales definido como *float muestras[20]*. Si bien en este caso tomamos 20 muestras, podemos tomar más o menos según necesitemos, e incluso modificar el intervalo de tiempo entre una muestra y la siguiente.
-Otra observación importante es que el análisis corre en tiempo real, es decir, a medida que tomamos cada muestra vamos generando *tmax*, *tmin* y acumulamos todo en *sum*. Por ende, el arreglo no nos haría falta para informar los datos por puerto serial.
-Si quisieramos usar el arreglo para calcular los datos de salida, deberiamos recorrerlo con otro ciclo e ir procesando las temperaturas una por una.
+Si observamos el código presentado, las muestras se almacenan en un arreglo de reales definido como *float muestras[20]*. Si bien en este caso tomamos 20 muestras, podemos tomar más o menos según necesitemos, e incluso modificar el intervalo de tiempo entre la toma de una muestra y la siguiente.
+
+Otra observación importante es que el análisis corre en tiempo real, es decir, a medida que tomamos cada muestra vamos generando *tmax*, *tmin* y acumulamos las temperaturas en *sum*, para luego calcular la media. 
+Si bien no necesitamos el arreglo *muestras* en nuestro análisis, es importante que tengamos un registro de las muestras tomadas para el caso en el que necesitemos acceder nuevamente a ellas.
+
+Para recorrer un arreglo de tamaño fijo, podemos usar la estructura *for*.
+
+´´´ sketch
+for (int j=0; j<20; j++) {
+	tmax=max(tmax, muestras[j]);
+	tmin=min(tmin, muestras[j]);
+	sum=sum+muestras[j];
+}
+´´´
+____
+##LDR
+
+Un fotoresistor, o LDR (light-dependent resistor) es un dispositivo cuya resistencia varia en función de la luz recibida. Podemos usar esta variación para medir, a través de las entradas analógicas, una estimación del nivel del luz.
+Por tanto, un fotoresistor disminuye su resistencia a medida que aumenta la luz sobre él. Los valores típicos son de 1 Mohm en total oscuridad, a 50-100 Ohm bajo luz brillante.
+
+Por otro lado, la variación de la resistencia es relativamente lenta, de 20 a 100 ms en función del modelo. Esta lentitud hace que no sea posible registrar variaciones rápidas, como las producidas en fuentes de luz artificiales alimentadas por corriente alterna. Este comportamiento puede ser beneficioso, ya que dota al sensor de una gran estabilidad.
+
+Finalmente, los fotoresistores no resultan adecuados para proporcionar una medición de la iluminancia, es decir, para servir como luxómetro Esto es debido a su baja precisión, su fuerte dependencia con la temperatura y, especialmente, a que su distribución espectral no resulta adecuada para la medición de iluminancia.
+
+Por tanto, un LDR es una sensor que resulta adecuado para proporcionar medidas cuantitativas sobre el nivel de luz, tanto en interiores como en exteriores, y reaccionar, por ejemplo, encendiendo una luz, subiendo una persiana, u orientando un robot.
+
+En este caso simularemos el encendido de una luz, con los leds de la EDUKIT10.
+
+´´´ sketch
+int led1 = 5; 
+int led2 = 6;
+int led3 = 7;
+int LDR = A7;
+int value;
+
+void lights(String cmd){
+	if(cmd=="on") {
+		digitalWrite(led1, HIGH);
+		digitalWrite(led2, HIGH);
+		digitalWrite(led3, HIGH);
+	}
+	if(cmd=="on") {
+		digitalWrite(led1, LOW);
+		digitalWrite(led2, LOW);
+		digitalWrite(led3, LOW);
+	}
+}
+
+void setup() {
+	pinMode(led1, OUTPUT);
+	pinMode(led2, OUTPUT);
+	pinMode(led3, OUTPUT);
+}
+
+void loop() {
+	value=analogRead(LDR);
+	if(value<300)
+		lights("on");
+	else
+		lights("off");
+
+}
+´´´
+De esta manera cuando disminuyamos la cantidad de luz recibida por el sensor, los leds se encenderán. Para hacer esto de manera mas eficiente es recomendable tener una idea de los valores que el sensor lee. Para ello debemos tomar algunas muestras antes de cargar nuestro código a la placa, así podremos ajustar de mejor manera el valor necesario para encender nuestros leds.
+No entraremos en detalle de la toma de muestras de luz, pues es análogo al muestreo hecho con el LM35.
+
